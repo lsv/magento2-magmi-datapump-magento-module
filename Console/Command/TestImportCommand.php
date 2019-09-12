@@ -1,0 +1,204 @@
+<?php
+
+namespace Lsv\Magmi2ImportTest\Console\Command;
+
+use Lsv\Datapump\Configuration;
+use Lsv\Datapump\ItemHolder;
+use Lsv\Datapump\Logger;
+use Lsv\Datapump\Product\ConfigurableProduct;
+use Lsv\Datapump\Product\Data\BaseImage;
+use Lsv\Datapump\Product\Data\BaseImageLabel;
+use Lsv\Datapump\Product\Data\Category;
+use Lsv\Datapump\Product\Data\GalleryImage;
+use Lsv\Datapump\Product\Data\SmallImage;
+use Lsv\Datapump\Product\Data\SmallImageLabel;
+use Lsv\Datapump\Product\Data\ThumbnailImage;
+use Lsv\Datapump\Product\Data\ThumbnailImageLabel;
+use Lsv\Datapump\Product\SimpleProduct;
+use Magento\Framework\App\Filesystem\DirectoryList;
+use Magento\Framework\Filesystem;
+use Magmi_DataPumpFactory;
+use Monolog;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\HttpFoundation\File\File;
+
+class TestImportCommand extends Command
+{
+
+    /**
+     * @var Filesystem
+     */
+    private $filesystem;
+
+    /**
+     * @var Configuration
+     */
+    private $configuration;
+
+    public function __construct(Filesystem $filesystem)
+    {
+        parent::__construct();
+        $this->filesystem = $filesystem;
+    }
+
+    protected function configure(): void
+    {
+        $this
+            ->setName('sdm:importproduct:testimport')
+            ->addOption('speedtest', null, InputOption::VALUE_NONE, 'Run the speed test')
+            ->setDescription('Test magmi');
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): void
+    {
+        $etcDir = $this->filesystem->getDirectoryRead(DirectoryList::CONFIG)->getAbsolutePath();
+        $envData = (include $etcDir.'env.php');
+
+        $this->configuration = new Configuration(
+            __DIR__.'/../../../../../..',
+            $envData['db']['connection']['default']['dbname'],
+            $envData['db']['connection']['default']['host'],
+            $envData['db']['connection']['default']['username'],
+            $envData['db']['connection']['default']['password']
+        );
+
+        $logDir = $this->filesystem->getDirectoryWrite(DirectoryList::LOG)->getAbsolutePath();
+        $file = 'testimport.log';
+        $stream = fopen($logDir.'/'.$file, 'ab');
+        $monolog = new Monolog\Logger('default', [new Monolog\Handler\StreamHandler($stream)]);
+        $logger = new Logger($monolog);
+
+        $magmi = Magmi_DataPumpFactory::getDataPumpInstance('productimport');
+
+        $itemholder = new ItemHolder($this->configuration, $logger, $magmi, $output);
+
+        if ($input->getOption('speedtest')) {
+            $this->addManyProducts($itemholder);
+        } else {
+            $itemholder->addProduct($this->simpleProductWithoutCategory());
+            $itemholder->addProduct($this->configurableProduct());
+            $itemholder->addProduct($this->simpleProductWithCategories());
+            $itemholder->addProduct($this->simpleProductWithImages());
+        }
+
+        $itemholder->import();
+    }
+
+    private function simpleProductWithoutCategory(): SimpleProduct
+    {
+        /** @var SimpleProduct $simpleProduct */
+        $simpleProduct = (new SimpleProduct())
+            ->setName('Simple product')
+            ->setSku('simple_no_category')
+            ->setDescription('Product description')
+            ->setPrice(15.99)
+            ->setTaxClass('Taxable Goods')
+            ->setQuantity(10);
+
+        return $simpleProduct;
+    }
+
+    private function configurableProduct(): ConfigurableProduct
+    {
+        $configProduct = new ConfigurableProduct(['color']);
+        $configProduct->setName('Config');
+        $configProduct->setSku('config');
+        $configProduct->setDescription('Config product');
+        $configProduct->setQuantity(false, true);
+        $configProduct->setTaxClass('Taxable Goods');
+
+        $configSimple1 = new SimpleProduct();
+        $configSimple1->set('color', 'blue');
+        $configSimple1->setName('Config simple 1');
+        $configSimple1->setSku('config-simple-1');
+        $configSimple1->setDescription('Config simple 1');
+        $configSimple1->setPrice(10);
+        $configSimple1->setTaxClass('Taxable Goods');
+        $configSimple1->setQuantity(50);
+        $configSimple1->setVisibility(false, false);
+        $configProduct->addSimpleProduct($configSimple1);
+
+        $configSimple2 = new SimpleProduct();
+        $configSimple2->set('color', 'green');
+        $configSimple2->setName('Config simple 2');
+        $configSimple2->setSku('config-simple-2');
+        $configSimple2->setDescription('Config simple 2');
+        $configSimple2->setPrice(15.99);
+        $configSimple2->setTaxClass('Taxable Goods');
+        $configSimple2->setQuantity(11);
+        $configSimple2->setVisibility(false, false);
+        $configProduct->addSimpleProduct($configSimple2);
+
+        return $configProduct;
+    }
+
+    private function simpleProductWithCategories(): SimpleProduct
+    {
+        /** @var SimpleProduct $simpleProduct */
+        $simpleProduct = (new SimpleProduct())
+            ->setName('Simple product - With categories')
+            ->setSku('simple_with_categories')
+            ->setDescription('Product description - With categories')
+            ->setPrice(14.99)
+            ->setTaxClass('Taxable Goods')
+            ->setQuantity(10)
+            ->addData(new Category('level1/level2/level3'));
+
+        return $simpleProduct;
+    }
+
+    private function simpleProductWithImages(): SimpleProduct
+    {
+        /** @var SimpleProduct $simpleProduct */
+        $simpleProduct = (new SimpleProduct())
+            ->setName('Simple product - With images')
+            ->setSku('simple_with_images')
+            ->setDescription('Product description - With images')
+            ->setPrice(17.75)
+            ->setTaxClass('Taxable Goods')
+            ->setQuantity(20);
+
+        $image = new BaseImage(new File(__DIR__.'/../../dummy_base.png'), $this->configuration);
+        $simpleProduct->addData($image);
+        $simpleProduct->addData(new BaseImageLabel('base dummy image'));
+
+        $small = new SmallImage(new File(__DIR__.'/../../dummy_small.png'), $this->configuration);
+        $simpleProduct->addData($small);
+        $simpleProduct->addData(new SmallImageLabel('small dummy image'));
+
+        $thumbnail = new ThumbnailImage(new File(__DIR__.'/../../dummy_thumbnail.png'), $this->configuration);
+        $simpleProduct->addData($thumbnail);
+        $simpleProduct->addData(new ThumbnailImageLabel('thumbnail dummy image'));
+
+        $gallery1 = new GalleryImage(new File(__DIR__.'/../../dummy_gallery_1.png'), $this->configuration, 'gallery image 1');
+        $simpleProduct->addData($gallery1);
+
+        $gallery1 = new GalleryImage(new File(__DIR__.'/../../dummy_gallery_2.png'), $this->configuration, 'gallery image 2');
+        $simpleProduct->addData($gallery1);
+
+        $gallery1 = new GalleryImage(new File(__DIR__.'/../../dummy_gallery_3.png'), $this->configuration, 'gallery image 3');
+        $simpleProduct->addData($gallery1);
+
+        return $simpleProduct;
+    }
+
+    private function addManyProducts(ItemHolder $holder): void
+    {
+        $createProduct = static function ($name, $sku, $description, $price, $quantity) {
+            return (new SimpleProduct())
+                ->setName($name)
+                ->setSku($sku)
+                ->setDescription($description)
+                ->setPrice($price)
+                ->setTaxClass('Taxable Goods')
+                ->setQuantity($quantity);
+        };
+
+        for($i = 0; $i < 1000; $i++) {
+            $holder->addProduct($createProduct('product name ' . $i, 'product_' . $i, 'description ' . $i, random_int(0, 5000), random_int(0, 10)));
+        }
+    }
+}

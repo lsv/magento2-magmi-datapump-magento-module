@@ -1,0 +1,25 @@
+{
+  "name": "lsv/magmi2importtest",
+  "license": "MIT",
+  "description": "Example on how to add products to magento via magmi 2",
+  "type": "magento2-module",
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://repo.magento.com/"
+    }
+  ],
+  "require": {
+    "php": "^7.1",
+    "lsv/magento2-magmi-dump": "^1.0"
+  },
+  "version": "1.0.0",
+  "autoload": {
+    "files": [
+      "registration.php"
+    ],
+    "psr-4": {
+      "Lsv\\Magmi2ImportTest\\": ""
+    }
+  }
+}
