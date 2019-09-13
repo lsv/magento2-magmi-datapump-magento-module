@@ -8,7 +8,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class TestImportCommand extends Command
+class TestCommand extends Command
 {
 
     /**
@@ -22,16 +22,16 @@ class TestImportCommand extends Command
         $this->import = $import;
     }
 
-    protected function configure(): void
+    protected function configure()
     {
         $this
-            ->setName('lsv:magmi2importtest:import')
-            ->addOption('speedtest', null, InputOption::VALUE_NONE, 'Run the speed test')
-            ->setDescription('Test magmi');
+            ->setName('lsv:magmi2importtest:test')
+            ->addOption('speedtest', null, InputOption::VALUE_NONE, 'Only run the speedtest');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): void
+    protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->import->execute($input, $output);
     }
+
 }
