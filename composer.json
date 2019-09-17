@@ -11,7 +11,7 @@
   ],
   "require": {
     "php": "^7.1",
-    "lsv/magento2-magmi-dump": "^1.0"
+    "lsv/magento2-magmi-dump": "^2.0"
   },
   "version": "1.0.0",
   "autoload": {

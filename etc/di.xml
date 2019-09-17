@@ -6,9 +6,6 @@
                 <item name="lsv_magmi2importtest_testimport" xsi:type="object">
                     Lsv\Magmi2ImportTest\Console\Command\TestImportCommand
                 </item>
-                <item name="lsv_magmi2importtest_test" xsi:type="object">
-                    Lsv\Magmi2ImportTest\Console\Command\TestCommand
-                </item>
             </argument>
         </arguments>
     </type>

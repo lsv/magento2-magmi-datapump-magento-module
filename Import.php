@@ -45,6 +45,7 @@ class Import
 
     public function execute(InputInterface $input, OutputInterface $output): void
     {
+        // Build configuration
         $etcDir = $this->filesystem->getDirectoryRead(DirectoryList::CONFIG)->getAbsolutePath();
         $envFile = $etcDir . 'env.php';
         $envData = (include $envFile);
@@ -57,16 +58,20 @@ class Import
             $envData['db']['connection']['default']['password']
         );
 
+        // Build logger
         $logDir = $this->filesystem->getDirectoryWrite(DirectoryList::LOG)->getAbsolutePath();
         $file = 'testimport.log';
         $stream = fopen($logDir.'/'.$file, 'ab');
         $monolog = new Monolog\Logger('default', [new Monolog\Handler\StreamHandler($stream)]);
         $logger = new Logger($monolog);
 
+        // Setup magmi
         $magmi = Magmi_DataPumpFactory::getDataPumpInstance('productimport');
 
+        // Build our item holder
         $itemholder = new ItemHolder($this->configuration, $logger, $magmi, $output);
 
+        // Add products
         if ($input->getOption('speedtest')) {
             $this->addManyProducts($itemholder);
         } else {
@@ -80,6 +85,7 @@ class Import
             }
         }
 
+        // Lets import our products
         $itemholder->import();
     }
 
@@ -109,16 +115,13 @@ class Import
 
     private function simpleProductWithoutCategory(): SimpleProduct
     {
-        /** @var SimpleProduct $simpleProduct */
-        $simpleProduct = (new SimpleProduct())
+        return (new SimpleProduct())
             ->setName('Simple product')
             ->setSku('simple_no_category')
             ->setDescription('Product description')
             ->setPrice(15.99)
             ->setTaxClass('Taxable Goods')
             ->setQuantity(10);
-
-        return $simpleProduct;
     }
 
     private function configurableProduct(): ConfigurableProduct
@@ -157,8 +160,7 @@ class Import
 
     private function simpleProductWithCategories(): SimpleProduct
     {
-        /** @var SimpleProduct $simpleProduct */
-        $simpleProduct = (new SimpleProduct())
+        return (new SimpleProduct())
             ->setName('Simple product - With categories')
             ->setSku('simple_with_categories')
             ->setDescription('Product description - With categories')
@@ -166,9 +168,8 @@ class Import
             ->setTaxClass('Taxable Goods')
             ->setQuantity(10)
             ->addData(new Category('level1.0/level2.0/level3.0'))
-        ->addData(new Category('level1.1/level2.1/level3.1'));
-
-        return $simpleProduct;
+            ->addData(new Category('level1.1/level2.1/level3.1'))
+            ->addData(new Category('level1.1&level2.2', false, true, true, '&'));
     }
 
     private function simpleProductWithImages(): SimpleProduct
@@ -182,26 +183,20 @@ class Import
             ->setTaxClass('Taxable Goods')
             ->setQuantity(20);
 
-        $image = new BaseImage(new File(__DIR__.'/dummy_base.png'), $this->configuration);
-        $simpleProduct->addData($image);
+        // Images
+        $simpleProduct->addData(new BaseImage(new File(__DIR__.'/dummy_base.png')));
         $simpleProduct->addData(new BaseImageLabel('base dummy image'));
 
-        $small = new SmallImage(new File(__DIR__.'/dummy_small.png'), $this->configuration);
-        $simpleProduct->addData($small);
+        $simpleProduct->addData(new SmallImage(new File(__DIR__.'/dummy_small.png')));
         $simpleProduct->addData(new SmallImageLabel('small dummy image'));
 
-        $thumbnail = new ThumbnailImage(new File(__DIR__.'/dummy_thumbnail.png'), $this->configuration);
-        $simpleProduct->addData($thumbnail);
+        $simpleProduct->addData(new ThumbnailImage(new File(__DIR__.'/dummy_thumbnail.png')));
         $simpleProduct->addData(new ThumbnailImageLabel('thumbnail dummy image'));
 
-        $gallery1 = new GalleryImage(new File(__DIR__.'/dummy_gallery_1.png'), $this->configuration, 'gallery image 1');
-        $simpleProduct->addData($gallery1);
-
-        $gallery1 = new GalleryImage(new File(__DIR__.'/dummy_gallery_2.png'), $this->configuration, 'gallery image 2');
-        $simpleProduct->addData($gallery1);
-
-        $gallery1 = new GalleryImage(new File(__DIR__.'/dummy_gallery_3.png'), $this->configuration, 'gallery image 3');
-        $simpleProduct->addData($gallery1);
+        // Gallery images
+        $simpleProduct->addData(new GalleryImage(new File(__DIR__.'/dummy_gallery_1.png'), 'gallery image 1'));
+        $simpleProduct->addData(new GalleryImage(new File(__DIR__.'/dummy_gallery_2.png'), 'gallery image 2'));
+        $simpleProduct->addData(new GalleryImage(new File(__DIR__.'/dummy_gallery_3.png'), 'gallery image 3'));
 
         return $simpleProduct;
     }
